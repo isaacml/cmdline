@@ -44,6 +44,25 @@ func (e *Exec) IsRunning() bool {
 	return e.running	
 }
 
+// Thread-safe function to run completely a cmdline. It will start it and wait for its ending
+func (e *Exec) Run() error{
+	var err error
+	
+	e.mu_run.Lock()
+	if e.running {
+		defer e.mu_run.Unlock()
+		return fmt.Errorf("cmdline: ALREADY_RUNNING_ERROR")
+	}
+	e.running = true
+	e.mu_run.Unlock()
+	err = e.cmd.Run()
+	e.mu_run.Lock()
+	e.running = false
+	e.mu_run.Unlock()	
+	
+	return err
+}
+
 // Thread-safe Start() method, starts execution of a commandline and does not wait until it ends
 // If you use this method to start your process and this one exits prematurely, it will be in the OS memory as a <defunct> 
 // process until you call Stop(), just to clear it all, and let the system in its original state
