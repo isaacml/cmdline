@@ -8,7 +8,7 @@
 
 package cmdline
 
-import ("os/exec";"strings";"fmt";"io";"sync")
+import ("os/exec";"strings";"fmt";"io";"sync";"syscall")
 
 // Exec object with its private properties and below its methods or member functions
 type Exec struct {
@@ -34,6 +34,13 @@ func Cmdline(cmdline string) *Exec{
 	exe.cmd.Args = args
 	
 	return exe
+}
+
+func (e *Exec) SigInt() error {
+	e.mu_run.Lock()
+	defer e.mu_run.Unlock()
+	e.running = false
+	return e.cmd.Process.Signal(syscall.SIGINT)
 }
 
 // Thread-safe function to know the state of the executable at any moment
