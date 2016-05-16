@@ -43,6 +43,7 @@ func Cmdline(cmdline string) *Exec {
 	return exe
 }
 
+// Thread-safe function to send a SIGINT signal (Ctrl-C) to our Exec object instead of the SIGINT used by the Stop() func
 func (e *Exec) SigInt() error {
 	e.mu_run.Lock()
 	defer e.mu_run.Unlock()
