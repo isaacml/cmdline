@@ -15,6 +15,8 @@ import (
 	"strings"
 	"sync"
 	"syscall"
+	"bufio"
+	"time"
 )
 
 // Exec object with its private properties and below its methods or member functions
@@ -71,6 +73,112 @@ func (e *Exec) Run() error {
 	e.running = true
 	e.mu_run.Unlock()
 	err = e.cmd.Run()
+	e.mu_run.Lock()
+	e.running = false
+	e.mu_run.Unlock()
+
+	return err
+}
+
+// Run a command, and gets out if locked a timeout secs with no output to stderr or just finished its work
+// It will start and will wait until its ending
+// delim stands for the end of line '\n' or '\r'
+func (e *Exec) RunTimeoutStderr(secs int, delim byte) error {
+	var err error
+	var run int64
+	
+	e.mu_run.Lock()
+	if e.running {
+		defer e.mu_run.Unlock()
+		return fmt.Errorf("cmdline: ALREADY_RUNNING_ERROR")
+	}
+	e.running = true
+	e.mu_run.Unlock()
+
+	go func(){
+		for {
+			diff := time.Now().Unix() - run
+			if (run != 0) && (diff > int64(secs)) { // running
+				e.cmd.Process.Kill()
+			}
+			time.Sleep(1*time.Second)
+			e.mu_run.Lock()
+			if !e.running {
+				e.mu_run.Unlock()
+				break 
+			}
+			e.mu_run.Unlock()
+		}
+	}()
+	stderr, err1 := e.cmd.StderrPipe()
+	if err1 == nil {
+		mediareader := bufio.NewReader(stderr)
+		e.cmd.Start()
+		for{ // bucle de reproduccion normal
+			run = time.Now().Unix()
+			_,err2 := mediareader.ReadString(delim) // blocks until read
+			if err2 != nil {
+				break;
+			}
+		}
+		e.cmd.Wait()
+	}else{
+		err = err1
+	}
+
+	e.mu_run.Lock()
+	e.running = false
+	e.mu_run.Unlock()
+
+	return err
+}
+
+// Run a command, and gets out if locked a timeout secs with no output to stdout or just finished its work
+// It will start and will wait until its ending
+// delim stands for the end of line '\n' or '\r'
+func (e *Exec) RunTimeoutStdout(secs int, delim byte) error {
+	var err error
+	var run int64
+	
+	e.mu_run.Lock()
+	if e.running {
+		defer e.mu_run.Unlock()
+		return fmt.Errorf("cmdline: ALREADY_RUNNING_ERROR")
+	}
+	e.running = true
+	e.mu_run.Unlock()
+
+	go func(){
+		for {
+			diff := time.Now().Unix() - run
+			if (run != 0) && (diff > int64(secs)) { // running
+				e.cmd.Process.Kill()
+			}
+			time.Sleep(1*time.Second)
+			e.mu_run.Lock()
+			if !e.running {
+				e.mu_run.Unlock()
+				break 
+			}
+			e.mu_run.Unlock()
+		}
+	}()
+	stdout, err1 := e.cmd.StdoutPipe()
+	if err1 == nil {
+		mediareader := bufio.NewReader(stdout)
+		e.cmd.Start()
+		for{ // bucle de reproduccion normal
+			run = time.Now().Unix()
+			_,err2 := mediareader.ReadString(delim) // blocks until read
+			if err2 != nil {
+				break;
+			}
+		}
+		e.cmd.Wait()
+	}else{
+		err = err1
+	}
+
 	e.mu_run.Lock()
 	e.running = false
 	e.mu_run.Unlock()
