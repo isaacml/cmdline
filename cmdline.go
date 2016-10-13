@@ -82,10 +82,12 @@ func (e *Exec) Run() error {
 
 // Run a command, and gets out if locked a timeout secs with no output to stderr or just finished its work
 // It will start and will wait until its ending
-// delim stands for the end of line '\n' or '\r'
-func (e *Exec) RunTimeoutStderr(secs int, delim byte) error {
+// delim stands for the end of line
+// linecontent that must appear before timeout is considered
+func (e *Exec) RunTimeoutStderr(secs int, delim byte, linecontent string) error {
 	var err error
 	var run int64
+	var contenthappenned bool
 	
 	e.mu_run.Lock()
 	if e.running {
@@ -95,13 +97,14 @@ func (e *Exec) RunTimeoutStderr(secs int, delim byte) error {
 	e.running = true
 	e.mu_run.Unlock()
 
+	contenthappenned = false
 	go func(){
 		for {
 			diff := time.Now().Unix() - run
 			if (run != 0) && (diff > int64(secs)) { // running
-				e.cmd.Process.Kill()
+				if contenthappenned { e.cmd.Process.Kill()}
 			}
-			time.Sleep(1*time.Second)
+			time.Sleep(25*time.Millisecond)
 			e.mu_run.Lock()
 			if !e.running {
 				e.mu_run.Unlock()
@@ -116,9 +119,12 @@ func (e *Exec) RunTimeoutStderr(secs int, delim byte) error {
 		e.cmd.Start()
 		for{ // bucle de reproduccion normal
 			run = time.Now().Unix()
-			_,err2 := mediareader.ReadString(delim) // blocks until read
+			line ,err2 := mediareader.ReadString(delim) // blocks until read
 			if err2 != nil {
 				break;
+			}
+			if strings.Contains(line, linecontent) {
+				contenthappenned = true
 			}
 		}
 		e.cmd.Wait()
@@ -135,10 +141,12 @@ func (e *Exec) RunTimeoutStderr(secs int, delim byte) error {
 
 // Run a command, and gets out if locked a timeout secs with no output to stdout or just finished its work
 // It will start and will wait until its ending
-// delim stands for the end of line '\n' or '\r'
-func (e *Exec) RunTimeoutStdout(secs int, delim byte) error {
+// delim stands for the end of line
+// linecontent that must appear before timeout is considered
+func (e *Exec) RunTimeoutStdout(secs int, delim byte, linecontent string) error {
 	var err error
 	var run int64
+	var contenthappenned bool
 	
 	e.mu_run.Lock()
 	if e.running {
@@ -148,13 +156,14 @@ func (e *Exec) RunTimeoutStdout(secs int, delim byte) error {
 	e.running = true
 	e.mu_run.Unlock()
 
+	contenthappenned = false
 	go func(){
 		for {
 			diff := time.Now().Unix() - run
 			if (run != 0) && (diff > int64(secs)) { // running
-				e.cmd.Process.Kill()
+				if contenthappenned { e.cmd.Process.Kill()}
 			}
-			time.Sleep(1*time.Second)
+			time.Sleep(25*time.Millisecond)
 			e.mu_run.Lock()
 			if !e.running {
 				e.mu_run.Unlock()
@@ -169,9 +178,12 @@ func (e *Exec) RunTimeoutStdout(secs int, delim byte) error {
 		e.cmd.Start()
 		for{ // bucle de reproduccion normal
 			run = time.Now().Unix()
-			_,err2 := mediareader.ReadString(delim) // blocks until read
+			line ,err2 := mediareader.ReadString(delim) // blocks until read
 			if err2 != nil {
 				break;
+			}
+			if strings.Contains(line, linecontent) {
+				contenthappenned = true
 			}
 		}
 		e.cmd.Wait()
