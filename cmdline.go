@@ -9,13 +9,13 @@
 package cmdline
 
 import (
+	"bufio"
 	"fmt"
 	"io"
 	"os/exec"
 	"strings"
 	"sync"
 	"syscall"
-	"bufio"
 	"time"
 )
 
@@ -45,7 +45,7 @@ func Cmdline(cmdline string) *Exec {
 	return exe
 }
 
-// Thread-safe function to send a SIGINT signal (Ctrl-C) to our Exec object instead of the SIGINT used by the Stop() func
+// Thread-safe function to send a SIGINT signal (Ctrl-C) to our Exec object instead of the SIGKILL used by the Stop() func
 func (e *Exec) SigInt() error {
 	e.mu_run.Lock()
 	defer e.mu_run.Unlock()
@@ -88,7 +88,7 @@ func (e *Exec) RunTimeoutStderr(secs int, delim byte, linecontent string) error 
 	var err error
 	var run int64
 	var contenthappenned bool
-	
+
 	e.mu_run.Lock()
 	if e.running {
 		defer e.mu_run.Unlock()
@@ -98,17 +98,19 @@ func (e *Exec) RunTimeoutStderr(secs int, delim byte, linecontent string) error 
 	e.mu_run.Unlock()
 
 	contenthappenned = false
-	go func(){
+	go func() {
 		for {
 			diff := time.Now().Unix() - run
 			if (run != 0) && (diff > int64(secs)) { // running
-				if contenthappenned { e.cmd.Process.Kill()}
+				if contenthappenned {
+					e.cmd.Process.Kill()
+				}
 			}
-			time.Sleep(25*time.Millisecond)
+			time.Sleep(25 * time.Millisecond)
 			e.mu_run.Lock()
 			if !e.running {
 				e.mu_run.Unlock()
-				break 
+				break
 			}
 			e.mu_run.Unlock()
 		}
@@ -117,18 +119,18 @@ func (e *Exec) RunTimeoutStderr(secs int, delim byte, linecontent string) error 
 	if err1 == nil {
 		mediareader := bufio.NewReader(stderr)
 		e.cmd.Start()
-		for{ // bucle de reproduccion normal
+		for { // bucle de reproduccion normal
 			run = time.Now().Unix()
-			line ,err2 := mediareader.ReadString(delim) // blocks until read
+			line, err2 := mediareader.ReadString(delim) // blocks until read
 			if err2 != nil {
-				break;
+				break
 			}
 			if strings.Contains(line, linecontent) {
 				contenthappenned = true
 			}
 		}
 		e.cmd.Wait()
-	}else{
+	} else {
 		err = err1
 	}
 
@@ -147,7 +149,7 @@ func (e *Exec) RunTimeoutStdout(secs int, delim byte, linecontent string) error 
 	var err error
 	var run int64
 	var contenthappenned bool
-	
+
 	e.mu_run.Lock()
 	if e.running {
 		defer e.mu_run.Unlock()
@@ -157,17 +159,19 @@ func (e *Exec) RunTimeoutStdout(secs int, delim byte, linecontent string) error 
 	e.mu_run.Unlock()
 
 	contenthappenned = false
-	go func(){
+	go func() {
 		for {
 			diff := time.Now().Unix() - run
 			if (run != 0) && (diff > int64(secs)) { // running
-				if contenthappenned { e.cmd.Process.Kill()}
+				if contenthappenned {
+					e.cmd.Process.Kill()
+				}
 			}
-			time.Sleep(25*time.Millisecond)
+			time.Sleep(25 * time.Millisecond)
 			e.mu_run.Lock()
 			if !e.running {
 				e.mu_run.Unlock()
-				break 
+				break
 			}
 			e.mu_run.Unlock()
 		}
@@ -176,18 +180,18 @@ func (e *Exec) RunTimeoutStdout(secs int, delim byte, linecontent string) error 
 	if err1 == nil {
 		mediareader := bufio.NewReader(stdout)
 		e.cmd.Start()
-		for{ // bucle de reproduccion normal
+		for { // bucle de reproduccion normal
 			run = time.Now().Unix()
-			line ,err2 := mediareader.ReadString(delim) // blocks until read
+			line, err2 := mediareader.ReadString(delim) // blocks until read
 			if err2 != nil {
-				break;
+				break
 			}
 			if strings.Contains(line, linecontent) {
 				contenthappenned = true
 			}
 		}
 		e.cmd.Wait()
-	}else{
+	} else {
 		err = err1
 	}
 
