@@ -45,12 +45,21 @@ func Cmdline(cmdline string) *Exec {
 	return exe
 }
 
-// Thread-safe function to send a SIGINT signal (Ctrl-C) to our Exec object instead of the SIGKILL used by the Stop() func
+// Thread-safe function to send a SIGINT signal (Ctrl-C / -2) to our Exec object instead of the SIGKILL used by the Stop() func
 func (e *Exec) SigInt() error {
 	e.mu_run.Lock()
 	defer e.mu_run.Unlock()
 	e.running = false
 	return e.cmd.Process.Signal(syscall.SIGINT)
+}
+
+// Thread-safe function to send a SIGKILL signal (-9) to our Exec object so the object is still usable
+func (e *Exec) SigKill() error {
+	e.mu_run.Lock()
+	defer e.mu_run.Unlock()
+
+	e.running = false
+	return exec.Command("/bin/kill", "-9", fmt.Sprintf("%d", e.cmd.Process.Pid)).Run()
 }
 
 // Thread-safe function to know the state of the executable at any moment
