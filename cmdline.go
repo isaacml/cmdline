@@ -53,13 +53,22 @@ func (e *Exec) SigInt() error {
 	return e.cmd.Process.Signal(syscall.SIGINT)
 }
 
-// Thread-safe function to send a SIGKILL signal (-9) to our Exec object so the object is still usable
+// Thread-safe function to send a SIGKILL signal (-9) to our Exec object
 func (e *Exec) SigKill() error {
 	e.mu_run.Lock()
 	defer e.mu_run.Unlock()
 
 	e.running = false
-	return exec.Command("/bin/kill", "-9", fmt.Sprintf("%d", e.cmd.Process.Pid)).Run()
+	return e.cmd.Process.Kill()
+}
+
+// Thread-safe Wait function to be used once SigInt() or SigKill() is used
+func (e *Exec) Wait() error {
+	e.mu_run.Lock()
+	defer e.mu_run.Unlock()
+
+	_, err := e.cmd.Process.Wait()
+	return err
 }
 
 // Thread-safe function to know the state of the executable at any moment
